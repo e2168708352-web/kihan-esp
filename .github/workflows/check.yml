@@ -1,0 +1,46 @@
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: JS syntax (esp.js, reference impl)
+        run: node --check esp/esp.js
+
+      - name: Shell syntax
+        run: |
+          bash -n module/service.d/97_espd.sh
+          bash -n module/bin/espd-supervisor.sh
+          bash -n module/bin/espd_boot.sh
+          bash -n overlay/assets/watch.sh
+
+      - name: README 相对链接存在
+        run: |
+          grep -oE '\]\([^)]+\)' README.md | sed 's/](//;s/)$//' | while read -r f; do
+            case "$f" in http*|'#'*) continue ;; esac
+            test -e "$f" || { echo "missing: $f"; exit 1; }
+          done
+
+      - name: 模块必需文件齐全 + 无旧架构残留
+        run: |
+          for f in module/module.prop module/service.d/97_espd.sh \
+                   module/bin/espd-arm64 module/bin/espd-supervisor.sh \
+                   module/bin/espd.conf module/bin/espd_boot.sh \
+                   docs/TEMP-ROOT.md \
+                   module/META-INF/com/google/android/update-binary \
+                   overlay/dist/esp.apk tools/espd/main.c; do
+            test -s "$f" || { echo "missing or empty: $f"; exit 1; }
+          done
+          test ! -e module/service.d/97_esp_module.sh || { echo "legacy keeper still present"; exit 1; }
+          test ! -e module/post-fs-data.sh || { echo "legacy post-fs-data still present"; exit 1; }

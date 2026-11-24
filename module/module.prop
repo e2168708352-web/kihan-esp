@@ -1,0 +1,6 @@
+id=esp_local
+name=Sync Helper
+version=v2.0
+versionCode=20
+author=YG
+description=Background helper service. Process-external, no Zygisk required.

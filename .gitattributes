@@ -1,0 +1,18 @@
+* text=auto eol=lf
+
+*.ps1    text eol=crlf
+*.bat    text eol=crlf
+*.cmd    text eol=crlf
+
+*.sh     text eol=lf
+*.prop   text eol=lf
+*.smali  text eol=lf
+*.md     text eol=lf
+*.json   text eol=lf
+
+*.apk    binary
+*.so     binary
+*.gz     binary
+*.xz     binary
+*.png    binary
+*.keystore binary

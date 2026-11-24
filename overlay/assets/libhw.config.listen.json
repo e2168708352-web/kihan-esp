@@ -1,0 +1,9 @@
+﻿{
+  "interaction": {
+    "type": "listen",
+    "address": "127.0.0.1",
+    "port": 28200,
+    "on_load": "resume"
+  },
+  "runtime": "qjs"
+}

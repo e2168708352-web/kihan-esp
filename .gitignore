@@ -1,0 +1,47 @@
+# 构建产物
+/dist/
+*.zip
+module/esp/libhw.so
+module/esp/libhw.so.gz
+module/esp/esp.apk
+module/esp/esp.js
+module/esp/libhw.config
+overlay/build/
+overlay/dist/*.apk
+!overlay/dist/esp.apk
+
+# 调试残留
+*.log
+.dh
+esp*.txt
+*.bak
+*.bak[0-9]*
+*.original
+*.built
+
+# 工具
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# gadget 二进制（旧架构，已弃用；用 tools\fetch-gadget.ps1 获取）
+esp/libhw.so.gz
+esp/libhw.so
+
+# 构建期生成
+overlay/debug.keystore
+*.idsig
+
+# apktool / 重打包中间产物（体积大、可重新下载）
+overlay/apktool.jar
+tools/apktool.jar
+overlay/build_test/
+overlay/build_*/
+*.dex
+
+# espd 编译产物（用 tools\espd\build.ps1 生成）
+tools/espd/dist/
+tools/espd/*.o
+tools/espd/*.exe
