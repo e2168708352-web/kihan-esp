@@ -37,7 +37,7 @@ jobs:
           for f in module/module.prop module/service.d/97_espd.sh \
                    module/bin/espd-arm64 module/bin/espd-supervisor.sh \
                    module/bin/espd.conf module/bin/espd_boot.sh \
-                   docs/TEMP-ROOT.md \
+                   docs/TEMP-ROOT.md docs/SECURITY-ASSESSMENT.md \
                    module/META-INF/com/google/android/update-binary \
                    overlay/dist/esp.apk overlay/art/ic_launcher.png \
                    tools/espd/main.c; do

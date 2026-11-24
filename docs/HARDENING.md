@@ -2,6 +2,8 @@
 
 v2 的核心不是「藏得更好」，而是**游戏进程里根本没有可查的东西**。旧架构（gadget 注入）的暴露面见 [LEGACY-gadget.md](LEGACY-gadget.md)。
 
+> 逐项打分与量化评估见 [SECURITY-ASSESSMENT.md](SECURITY-ASSESSMENT.md)（客户端 8.0/10，算上服务端 6.5/10）。
+
 ## 一、实测数据（Android 16 / KernelSU）
 
 ```

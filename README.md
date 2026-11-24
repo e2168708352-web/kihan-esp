@@ -108,7 +108,8 @@ adb shell 'su -c "sh /data/local/tmp/espd_boot.sh"'
 - [docs/PROTOCOL.md](docs/PROTOCOL.md) — UDP 帧格式
 - [docs/OFFSETS.md](docs/OFFSETS.md) — 类/字段偏移与运行时自解析
 - [docs/DEPLOY.md](docs/DEPLOY.md) — 构建、刷入、诊断、排错
-- [docs/HARDENING.md](docs/HARDENING.md) — 暴露面分析与安全性
+- [docs/HARDENING.md](docs/HARDENING.md) — 暴露面分析与加固方向
+- [docs/SECURITY-ASSESSMENT.md](docs/SECURITY-ASSESSMENT.md) — 对抗反作弊的安全性量化评估（逐项打分）
 - [docs/LEGACY-gadget.md](docs/LEGACY-gadget.md) — 旧注入架构归档（已弃用）
 
 ## 已知限制
