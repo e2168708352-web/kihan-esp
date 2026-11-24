@@ -81,18 +81,20 @@ if ! pm list packages 2>/dev/null | grep -q "package:$OVERLAY"; then
   done
 fi
 
-svc_keep() {
-  if pidof "$GAME" >/dev/null 2>&1 && ! pidof "$OVERLAY" >/dev/null 2>&1; then
-    am start-foreground-service -n "$SVC" >/dev/null 2>&1
-    log "overlay down -> start service"
-  fi
-}
+# ---------- 悬浮窗按需生命周期 ----------
+# 由独立 watchdog 管理：游戏在才起服务，游戏退出主动停掉，
+# 把 SYSTEM_ALERT_WINDOW 的暴露窗口压到仅对局期间。
+DW=$MOD/bin/desk-watch.sh
+if [ -f "$DW" ]; then
+  chmod 755 "$DW" 2>/dev/null
+  nohup sh "$DW" >/dev/null 2>&1 &
+  log "desk-watch started"
+fi
 
 # ---------- 主循环 ----------
 fails=0
 last=0
 while true; do
-  svc_keep
   rotate
 
   # 退出时清 PID 文件

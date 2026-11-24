@@ -85,14 +85,30 @@ if [ -f "$M/bin/espd-supervisor.sh" ]; then
   echo "    supervisor: $SUP (模块)"
 else
   SUP="$BIN/supervisor.sh"
-  cat > "$SUP" <<'SUPEOF'
+   cat > "$SUP" <<'SUPEOF'
 #!/system/bin/sh
 W=/data/local/tmp/.esp
 B=$W/bin/espd-arm64
+PIDF=$W/supervisor.pid
 mkdir -p "$W"
-exec 9>"$W/supervisor.lock"
-flock -n 9 || exit 0
-if [ -n "$(pidof espd-arm64)" ]; then exit 0; fi
+
+# 单例：PID 文件 + /proc 校验（不用 flock，Android toybox 在 sh 里不可靠）
+alive() {
+  [ -f "$PIDF" ] || return 1
+  p=$(cat "$PIDF" 2>/dev/null | tr -d ' \n')
+  [ -n "$p" ] && [ -d "/proc/$p" ] || return 1
+  c=$(tr '\0' ' ' < "/proc/$p/cmdline" 2>/dev/null)
+  case "$c" in *espd-supervisor.sh*) return 0;; *) return 1;; esac
+}
+alive && exit 0
+echo $$ > "$PIDF"
+sleep 0.3
+[ "$(cat "$PIDF" 2>/dev/null | tr -d ' \n')" = "$$" ] || exit 0
+
+# 悬浮窗按需启动（游戏在才起服务）
+DW=$W/bin/desk-watch.sh
+[ -f "$DW" ] && nohup sh "$DW" >/dev/null 2>&1 &
+
 fails=0; last=0
 while true; do
   "$B" daemon --dir "$W" --pkg com.tencent.KiHan >>"$W/espd.log" 2>&1

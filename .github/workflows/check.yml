@@ -22,6 +22,7 @@ jobs:
         run: |
           bash -n module/service.d/97_espd.sh
           bash -n module/bin/espd-supervisor.sh
+          bash -n module/bin/desk-watch.sh
           bash -n module/bin/espd_boot.sh
           bash -n overlay/assets/watch.sh
 
@@ -37,6 +38,7 @@ jobs:
           for f in module/module.prop module/service.d/97_espd.sh \
                    module/bin/espd-arm64 module/bin/espd-supervisor.sh \
                    module/bin/espd.conf module/bin/espd_boot.sh \
+                   module/bin/desk-watch.sh \
                    docs/TEMP-ROOT.md docs/SECURITY-ASSESSMENT.md \
                    module/META-INF/com/google/android/update-binary \
                    overlay/dist/esp.apk overlay/art/ic_launcher.png \

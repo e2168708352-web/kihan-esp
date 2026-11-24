@@ -1,4 +1,4 @@
-﻿<#
+<#
   build-module.ps1 (v2) — 把 module/ + esp/ 打成可刷入的 KernelSU/Magisk 模块 zip
 
   新架构：进程外只读（espd），不再需要 gadget / Zygisk / ZygiskFrida。
@@ -84,7 +84,7 @@ try {
   $names = $zip2.Entries.FullName
   $bad = $names | Where-Object { $_ -match '97_esp_module|libhw\.so\.gz|libhw\.config' }
   if ($bad) { throw "zip 里仍有旧架构文件: $($bad -join ', ')" }
-  $need = @('module.prop','service.d/97_espd.sh','bin/espd-arm64','bin/espd-supervisor.sh','bin/espd.conf')
+  $need = @('module.prop','service.d/97_espd.sh','bin/espd-arm64','bin/espd-supervisor.sh','bin/espd.conf','bin/desk-watch.sh','bin/espd_boot.sh')
   foreach ($n in $need) {
     if ($names -notcontains $n) { throw "zip 缺少必需文件: $n" }
   }
