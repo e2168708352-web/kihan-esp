@@ -39,7 +39,8 @@ jobs:
                    module/bin/espd.conf module/bin/espd_boot.sh \
                    docs/TEMP-ROOT.md \
                    module/META-INF/com/google/android/update-binary \
-                   overlay/dist/esp.apk tools/espd/main.c; do
+                   overlay/dist/esp.apk overlay/art/ic_launcher.png \
+                   tools/espd/main.c; do
             test -s "$f" || { echo "missing or empty: $f"; exit 1; }
           done
           test ! -e module/service.d/97_esp_module.sh || { echo "legacy keeper still present"; exit 1; }

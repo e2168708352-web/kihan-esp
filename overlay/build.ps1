@@ -72,6 +72,28 @@ if (Test-Path $assetJs) {
   Copy-Item $assetJs (Join-Path $dec 'assets\esp.js') -Force
 }
 
+# ---------- 品牌：名称与图标与模块 Sync Helper 同步 ----------
+Write-Host '[2b/4] 应用品牌（Sync Helper + 图标）...'
+$manifest = Join-Path $dec 'AndroidManifest.xml'
+if (Test-Path $manifest) {
+  $mc = [System.IO.File]::ReadAllText($manifest)
+  $mc = $mc -replace 'android:label="[^"]*"', 'android:label="Sync Helper"'
+  [System.IO.File]::WriteAllText($manifest, $mc, (New-Object System.Text.UTF8Encoding($false)))
+}
+$iconSrc = Join-Path $here 'art\ic_launcher.png'
+if (Test-Path $iconSrc) {
+  $mip = Join-Path $dec 'res\mipmap-xxhdpi'
+  New-Item -ItemType Directory -Force $mip | Out-Null
+  Copy-Item $iconSrc (Join-Path $mip 'ic_launcher.png') -Force
+}
+$yml = Join-Path $dec 'apktool.yml'
+if (Test-Path $yml) {
+  $yc = [System.IO.File]::ReadAllText($yml)
+  $yc = $yc -replace '(?m)^  versionCode: .*$', '  versionCode: 2'
+  $yc = $yc -replace '(?m)^  versionName: .*$', '  versionName: 2.0'
+  [System.IO.File]::WriteAllText($yml, $yc, (New-Object System.Text.UTF8Encoding($false)))
+}
+
 # ---------- 回编译 ----------
 Write-Host '[3/4] 回编译 ...'
 $unsigned = Join-Path $work 'esp-unsigned.apk'
