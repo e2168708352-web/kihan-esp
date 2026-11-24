@@ -90,6 +90,8 @@ else
 W=/data/local/tmp/.esp
 B=$W/bin/espd-arm64
 mkdir -p "$W"
+exec 9>"$W/supervisor.lock"
+flock -n 9 || exit 0
 if [ -n "$(pidof espd-arm64)" ]; then exit 0; fi
 fails=0; last=0
 while true; do
@@ -118,16 +120,33 @@ fi
 # ---------- 3. 起 supervisor ----------
 echo ""
 echo "[3] 启动 espd"
+
+# 停止所有旧 supervisor / espd。
+# 注意：pidof -x espd-supervisor.sh 找不到进程——脚本是通过 "sh 脚本" 跑的，
+# 进程名是 sh。必须扫 /proc/*/cmdline 精确匹配。
+kill_sup() {
+  for d in /proc/[0-9]*; do
+    [ -r "$d/cmdline" ] || continue
+    c=$(tr '\0' ' ' < "$d/cmdline" 2>/dev/null)
+    case "$c" in
+      *espd-supervisor.sh*|*espd_boot.sh*)
+        p=${d#/proc/}
+        [ "$p" = "$$" ] && continue
+        kill -9 "$p" 2>/dev/null && echo "    停止旧 supervisor pid=$p"
+        ;;
+    esac
+  done
+}
+
 OLD=$(pidof espd-arm64)
-if [ -n "$OLD" ]; then
-  echo "    已有 espd pid=$OLD，先停"
-  for p in $(pidof -x espd-supervisor.sh 2>/dev/null); do kill -9 $p 2>/dev/null; done
+if [ -n "$OLD" ] || true; then
+  kill_sup
   sleep 1
-  kill -9 $OLD 2>/dev/null
+  for p in $(pidof espd-arm64); do kill -9 "$p" 2>/dev/null; done
   sleep 1
 fi
 
-rm -f "$W/espd.lock"
+rm -f "$W/espd.lock" "$W/supervisor.lock"
 nohup sh "$SUP" "$M" >/dev/null 2>&1 &
 sleep 4
 

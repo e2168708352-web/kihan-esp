@@ -1,18 +1,23 @@
 #!/system/bin/sh
-# espd-supervisor.sh — espd 的守护外壳（单例 + 退避重启 + 日志轮转 + 悬浮窗保活）
+# ============================================================================
+# espd-supervisor.sh — espd 的守护外壳
 #
-# 由 service.d/97_espd.sh 以 nohup 拉起，全程运行在 u:r:ksu:s0（实测该域可读 app 内存）。
-# 本脚本不提权、不碰 zygote、不 pkill 任何系统进程。
+# 单例机制：PID 文件 + /proc 校验（不依赖 flock，Android toybox 的 flock
+# 在 shell 里行为不一致，实测会报 Bad file descriptor）。
+#   启动时读 supervisor.pid，若该 PID 仍存活且 cmdline 含本脚本名 → 退出。
+#
+# 由 service.d/97_espd.sh 或 espd_boot.sh 以 nohup 拉起，全程 u:r:ksu:s0。
+# ============================================================================
 
 MOD=${1:-/data/adb/modules/esp_local}
 BIN=$MOD/bin/espd-arm64
 CONF=$MOD/bin/espd.conf
 DIR=/data/local/tmp/.esp
 LOG=$DIR/espd.log
-STATUS=$DIR/status.json
+PIDF=$DIR/supervisor.pid
+GAME=com.tencent.KiHan
 OVERLAY=com.sys.deskhelper
 SVC=$OVERLAY/com.lcs.esp.OverlayService
-GAME=com.tencent.KiHan
 
 mkdir -p "$DIR" 2>/dev/null
 
@@ -27,24 +32,45 @@ rotate() {
   fi
 }
 
-# ---------- 单例：已有 espd 在跑就退出 ----------
-if [ -n "$(pidof espd-arm64)" ]; then
-  log "supervisor: espd-arm64 already running, exit"
+# ---------- 单例：PID 文件 + /proc 校验 ----------
+is_sup_alive() {
+  [ -f "$PIDF" ] || return 1
+  p=$(cat "$PIDF" 2>/dev/null | tr -d ' \n')
+  [ -n "$p" ] || return 1
+  [ -d "/proc/$p" ] || return 1
+  c=$(tr '\0' ' ' < "/proc/$p/cmdline" 2>/dev/null)
+  case "$c" in
+    *espd-supervisor.sh*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+if is_sup_alive; then
+  log "supervisor: already running pid=$(cat $PIDF), exit"
   exit 0
 fi
 
-log "=== supervisor start mod=$MOD"
+# 抢占地写入自己的 PID（$$ 是当前 shell）
+echo $$ > "$PIDF"
+# 再校验一次，防止并发写覆盖
+sleep 0.3
+if [ "$(cat "$PIDF" 2>/dev/null | tr -d ' \n')" != "$$" ]; then
+  log "supervisor: lost pid race, exit"
+  exit 0
+fi
+
+log "=== supervisor start pid=$$ mod=$MOD"
 log "ctx=$(cat /proc/self/attr/current 2>/dev/null) uid=$(id -u)"
 [ -x "$BIN" ] || { log "FATAL: $BIN not executable"; exit 1; }
 
-# ---------- 配置：首次写入，已存在不覆盖（保留真机校准值） ----------
+# ---------- 配置：首次写入，已存在不覆盖 ----------
 if [ ! -f "$DIR/espd.conf" ] && [ -f "$CONF" ]; then
   cp -f "$CONF" "$DIR/espd.conf"
   chmod 644 "$DIR/espd.conf"
   log "wrote espd.conf"
 fi
 
-# ---------- 悬浮窗 APK：没装就装，冷启动 pm 未就绪 → 5 次重试 ----------
+# ---------- 悬浮窗 APK ----------
 if ! pm list packages 2>/dev/null | grep -q "package:$OVERLAY"; then
   i=0
   while [ $i -lt 5 ]; do
@@ -55,7 +81,6 @@ if ! pm list packages 2>/dev/null | grep -q "package:$OVERLAY"; then
   done
 fi
 
-# 悬浮窗服务保活（游戏在跑时才需要，避免空转拉起）
 svc_keep() {
   if pidof "$GAME" >/dev/null 2>&1 && ! pidof "$OVERLAY" >/dev/null 2>&1; then
     am start-foreground-service -n "$SVC" >/dev/null 2>&1
@@ -63,12 +88,15 @@ svc_keep() {
   fi
 }
 
-# ---------- 主循环：espd 退出就带退避重启 ----------
+# ---------- 主循环 ----------
 fails=0
 last=0
 while true; do
   svc_keep
   rotate
+
+  # 退出时清 PID 文件
+  trap 'rm -f "$PIDF"; exit 0' INT TERM
 
   "$BIN" daemon --dir "$DIR" --pkg "$GAME"
   rc=$?
