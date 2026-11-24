@@ -63,7 +63,16 @@ adb push dist\esp_local-module.zip /data/local/tmp/
 adb shell 'su -c "ksud module install /data/local/tmp/esp_local-module.zip"'
 ```
 
-刷入后**开机自动起 espd**，开游戏即在 33ms 内发现 pid 并画线（首次 il2cpp 类扫描约 1s）。不需要重启之外的任何手工步骤。
+刷入后 espd 即开始工作，开游戏即在 33ms 内发现 pid 并画线（首次 il2cpp 类扫描约 1s）。
+
+**「开机自启」取决于 root 类型**，两种情形差别很大：
+
+| root 类型 | 完整重启后 | 软重启（`ctl.restart zygote`）后 |
+|---|---|---|
+| 永久 root（内核已打 KSU 补丁） | ✅ `service.d` 自动起 espd，零手工 | ✅ espd 不受影响 |
+| **临时 root**（运行时打补丁） | ❌ root 消失，需重新获取后跑 `espd_boot.sh` | ✅ root 与 espd 都保留，直接开游戏 |
+
+软重启这一点已实测：`espd` / `supervisor` / 悬浮窗全部存活，只有游戏进程（zygote 子进程）会被杀。详见 [docs/TEMP-ROOT.md](docs/TEMP-ROOT.md)。
 
 验证（不进游戏也能跑）：
 
@@ -92,7 +101,7 @@ su -c "sh -c '/data/adb/modules/esp_local/bin/espd-arm64 scan Transform UnityEng
 
 ### 临时 root 特别注意
 
-如果 root 是**运行时临时获取的**（内核没打 KSU 补丁，重启后 `su` 消失），`service.d` 不会开机自启，**每次重启后必须手动跑一次启动脚本**：
+如果 root 是**运行时临时获取的**（内核没打 KSU 补丁，**完整重启**后 `su` 消失），`service.d` 不会开机自启，需要重新获取 root 后手动跑一次启动脚本：
 
 ```powershell
 adb push module\bin\espd_boot.sh /data/local/tmp/

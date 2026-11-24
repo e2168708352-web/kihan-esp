@@ -135,7 +135,27 @@ espd probe --pkg com.sys.deskhelper
 | 调试迭代 | 重启 zygote、掉 adb、屏幕黑一下 | 改 espd 重新 push，不影响系统 |
 | 失败后果 | zygote 半残、注入丢失、要重来 | espd 退出，supervisor 5s 后重来 |
 | 对系统的侵入 | mount bind、SELinux 标签、exec 阻断对抗 | 零 |
-| 软重启（`ctl.restart zygote`） | 注入全丢 | **espd 存活**（不在 zygote 子进程链） |
+| 软重启（`ctl.restart zygote`） | 注入全丢，需重新走注入流程 | **espd / supervisor / 悬浮窗全部存活** |
+
+### 软重启实测记录
+
+针对 `setprop ctl.restart zygote` 单独做过一次实测，结果与预期不同，记录如下：
+
+```
+操作前   espd pid=14863   supervisor=1   zygote64 pid=30913/30922   libzygisk=3
+执行     setprop ctl.restart zygote
+等待     adb 短暂断开，约 15s 后恢复
+操作后   espd pid=14863   supervisor=1   zygote64 pid=6993/7003     libzygisk=3
+         desk pid=14010  boot_id 未变   uptime 连续（未重启系统）
+```
+
+三个关键结论：
+
+1. **临时 root 保留** —— `uid=0`、域仍为 `u:r:ksu:s0`。软重启只重启 Java 层，不涉及内核补丁。
+2. **espd 不受影响** —— pid 未变，因为它挂在 supervisor（父进程为 init）下，不在 zygote 的子进程链里。desk 悬浮窗同样存活。
+3. **`libzygisk` 清不掉** —— 新 zygote 仍是 `libzygisk=3`。说明 zygisk 的加载发生在 init/post-fs-data 阶段，`ctl.restart zygote` 只是重新 fork 一个已加载该库的 zygote。要清掉它**只有完全重启**。
+
+> 另注：`libzygisk` 留在 zygote 里对本方案无影响——espd 从进程外读取游戏内存，不依赖 zygote 挂了什么库。
 
 旧方案中设备反复出错（adb 掉线、`/data/adb` 时通时不通、zygote 有 zygisk 但游戏没注入），根因就是到处留手。v2 只做一件事：**读**。
 
