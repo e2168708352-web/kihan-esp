@@ -16,9 +16,21 @@ DIR=/data/local/tmp/.esp
 
 mkdir -p "$DIR" 2>/dev/null
 
-# 单例：espd 或 supervisor 任一在跑就不再拉起
-if [ -n "$(pidof espd-arm64)" ]; then exit 0; fi
-if pidof -x espd-supervisor.sh >/dev/null 2>&1; then exit 0; fi
+# 单例只看 supervisor（PID 文件 + /proc cmdline 校验）。
+# 不能顺便用 `pidof espd-arm64` 提前退出：espd 常驻，而 supervisor 可能被
+# kill -9 过，只判 espd 存活会导致「daemon 在、没人管 desk-watch」永久卡死。
+# supervisor 自己会识别已有的 daemon，只做监控，不会抢锁重启。
+# 也不能用 pidof -x espd-supervisor.sh —— 脚本以 "sh 脚本" 方式运行，
+# 进程名是 sh，按 comm 永远匹配不到。
+SUPP=$(cat "$DIR/supervisor.pid" 2>/dev/null | tr -d ' \n')
+if [ -n "$SUPP" ] && [ -d "/proc/$SUPP" ]; then
+  c=$(tr '\0' ' ' < "/proc/$SUPP/cmdline" 2>/dev/null)
+  case "$c" in *espd-supervisor.sh*) exit 0;; esac
+fi
 
-nohup sh "$SUP" "$MOD" >/dev/null 2>&1 &
+if command -v setsid >/dev/null 2>&1; then
+  setsid sh "$SUP" "$MOD" </dev/null >/dev/null 2>&1 &
+else
+  nohup sh "$SUP" "$MOD" </dev/null >/dev/null 2>&1 &
+fi
 exit 0

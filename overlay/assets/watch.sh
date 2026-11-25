@@ -7,5 +7,9 @@
 
 MOD=/data/adb/modules/esp_local
 if [ -f "$MOD/service.d/97_espd.sh" ]; then
-  nohup sh "$MOD/service.d/97_espd.sh" >/dev/null 2>&1 &
+  if command -v setsid >/dev/null 2>&1; then
+    setsid sh "$MOD/service.d/97_espd.sh" </dev/null >/dev/null 2>&1 &
+  else
+    nohup sh "$MOD/service.d/97_espd.sh" </dev/null >/dev/null 2>&1 &
+  fi
 fi

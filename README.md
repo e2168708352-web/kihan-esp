@@ -38,7 +38,7 @@
         ├─ 算屏幕：相机 Transform → 自建视图矩阵 → 投影（buildView/project）
         └─ 发 UDP 127.0.0.1:29000（帧格式一字不改）
         ↓
-[com.sys.deskhelper]       悬浮窗，绘制代码零改动
+[com.sys.deskhelper]       悬浮窗，绘制代码零改动（仅对局期间由 desk-watch 拉起）
 ```
 
 启动链路：`service.d/97_espd.sh → espd-supervisor.sh → espd daemon`。无 post-fs-data、无 zygote 重启、无 pkill qsguard、无 mount、无 reboot。

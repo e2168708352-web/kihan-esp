@@ -79,51 +79,14 @@ fi
 chmod 755 "$BIN/espd-arm64" 2>/dev/null
 echo "    ready: $BIN/espd-arm64 ($(stat -c %s "$BIN/espd-arm64" 2>/dev/null) B)"
 
-# supervisor：模块里有就用模块的，否则内联一份精简版
-if [ -f "$M/bin/espd-supervisor.sh" ]; then
-  SUP="$M/bin/espd-supervisor.sh"
-  echo "    supervisor: $SUP (模块)"
-else
-  SUP="$BIN/supervisor.sh"
-   cat > "$SUP" <<'SUPEOF'
-#!/system/bin/sh
-W=/data/local/tmp/.esp
-B=$W/bin/espd-arm64
-PIDF=$W/supervisor.pid
-mkdir -p "$W"
-
-# 单例：PID 文件 + /proc 校验（不用 flock，Android toybox 在 sh 里不可靠）
-alive() {
-  [ -f "$PIDF" ] || return 1
-  p=$(cat "$PIDF" 2>/dev/null | tr -d ' \n')
-  [ -n "$p" ] && [ -d "/proc/$p" ] || return 1
-  c=$(tr '\0' ' ' < "/proc/$p/cmdline" 2>/dev/null)
-  case "$c" in *espd-supervisor.sh*) return 0;; *) return 1;; esac
-}
-alive && exit 0
-echo $$ > "$PIDF"
-sleep 0.3
-[ "$(cat "$PIDF" 2>/dev/null | tr -d ' \n')" = "$$" ] || exit 0
-
-# 悬浮窗按需启动（游戏在才起服务）
-DW=$W/bin/desk-watch.sh
-[ -f "$DW" ] && nohup sh "$DW" >/dev/null 2>&1 &
-
-fails=0; last=0
-while true; do
-  "$B" daemon --dir "$W" --pkg com.tencent.KiHan >>"$W/espd.log" 2>&1
-  rc=$?
-  now=$(date +%s)
-  if [ $((now - last)) -lt 30 ]; then fails=$((fails+1)); else fails=0; fi
-  last=$now
-  case $fails in 0|1) nap=5;; 2) nap=15;; *) nap=60;; esac
-  echo "$(date '+%m-%d %H:%M:%S') espd exit rc=$rc fails=$fails nap=${nap}s" >>"$W/espd.log"
-  sleep $nap
-done
-SUPEOF
-  chmod 755 "$SUP"
-  echo "    supervisor: $SUP (内联)"
+# supervisor 现在就只有在模块里的一份（bin/espd-supervisor.sh），
+# 不再维护内联兜底副本——两份逻辑容易不同步，且模块包里必然包含它。
+SUP="$M/bin/espd-supervisor.sh"
+if [ ! -f "$SUP" ]; then
+  echo "    !! 缺少 $SUP，模块不完整"
+  exit 3
 fi
+echo "    supervisor: $SUP"
 
 # 配置模板
 if [ ! -f "$W/espd.conf" ] && [ -f "$M/bin/espd.conf" ]; then
@@ -138,32 +101,51 @@ echo ""
 echo "[3] 启动 espd"
 
 # 停止所有旧 supervisor / espd。
-# 注意：pidof -x espd-supervisor.sh 找不到进程——脚本是通过 "sh 脚本" 跑的，
-# 进程名是 sh。必须扫 /proc/*/cmdline 精确匹配。
+# 关键：绝不能匹配 espd_boot.sh —— 当前脚本是通过
+# `su -c "sh .../espd_boot.sh"` 启动的，匹配它会连父进程（su/App）一起杀掉，
+# 这正是「一键部署跑到一半没输出」的原因。
+# 也排除自己的所有祖先进程（$$ / $PPID / 更上层）。
+ancestors=" $$ $PPID "
+p=$PPID
+while [ -n "$p" ] && [ "$p" != "0" ] && [ "$p" != "1" ]; do
+  ancestors="$ancestors$p "
+  p=$(awk '/^PPid:/{print $2}' "/proc/$p/status" 2>/dev/null)
+  [ -z "$p" ] && break
+done
+
 kill_sup() {
   for d in /proc/[0-9]*; do
     [ -r "$d/cmdline" ] || continue
+    pid=${d#/proc/}
+    case "$ancestors" in *" $pid "*) continue;; esac
     c=$(tr '\0' ' ' < "$d/cmdline" 2>/dev/null)
     case "$c" in
-      *espd-supervisor.sh*|*espd_boot.sh*)
-        p=${d#/proc/}
-        [ "$p" = "$$" ] && continue
-        kill -9 "$p" 2>/dev/null && echo "    停止旧 supervisor pid=$p"
+      *espd-supervisor.sh*)
+        kill -9 "$pid" 2>/dev/null && echo "    停止旧 supervisor pid=$pid"
         ;;
     esac
   done
 }
 
+# 无条件清理：即使当前没有 espd，也可能有残留的 supervisor 占着锁
 OLD=$(pidof espd-arm64)
-if [ -n "$OLD" ] || true; then
-  kill_sup
-  sleep 1
-  for p in $(pidof espd-arm64); do kill -9 "$p" 2>/dev/null; done
-  sleep 1
-fi
+[ -n "$OLD" ] && echo "    发现旧 espd pid=$OLD"
+kill_sup
+sleep 1
+for p in $(pidof espd-arm64); do kill -9 "$p" 2>/dev/null; done
+sleep 1
 
 rm -f "$W/espd.lock" "$W/supervisor.lock"
-nohup sh "$SUP" "$M" >/dev/null 2>&1 &
+
+# 用 setsid 彻底脱离当前会话：
+# App 通过 `su -c` 调用本脚本时，su 会话结束会连带回收其子进程；
+# 只靠 nohup 在部分 Android 版本上不够，supervisor 会活不过 2 秒。
+# setsid 让 supervisor 成为独立会话首进程，父进程变为 init。
+if command -v setsid >/dev/null 2>&1; then
+  setsid sh "$SUP" "$M" </dev/null >/dev/null 2>&1 &
+else
+  nohup sh "$SUP" "$M" </dev/null >/dev/null 2>&1 &
+fi
 sleep 4
 
 P=$(pidof espd-arm64)
@@ -194,7 +176,9 @@ appops set com.sys.deskhelper SYSTEM_ALERT_WINDOW allow 2>/dev/null && echo "   
 echo ""
 echo "[5] 状态"
 echo "    espd:  $(pidof espd-arm64 || echo NOT_RUNNING)"
-echo "    sup:   $(pidof -x espd-supervisor.sh 2>/dev/null || echo -)"
+# 不能用 pidof -x espd-supervisor.sh —— 脚本是以 "sh 脚本" 跑的，进程名是 sh。
+SUPP=$(cat "$W/supervisor.pid" 2>/dev/null | tr -d ' \n')
+if [ -n "$SUPP" ] && [ -d "/proc/$SUPP" ]; then echo "    sup:   $SUPP"; else echo "    sup:   -"; fi
 echo "    游戏:  $(pidof com.tencent.KiHan || echo '未运行（开游戏后自动接管）')"
 echo ""
 echo "    日志: tail $W/espd.log"
@@ -202,5 +186,8 @@ echo "    状态: cat  $W/status.json"
 echo ""
 echo "=========================================="
 echo " 完成。开游戏即可。"
-echo " 停止: kill \$(pidof espd-arm64)"
+echo " 停止(会被 supervisor 5s 内重新拉起):"
+echo "   先杀 supervisor: kill \$(cat $W/supervisor.pid)"
+echo "   再杀 espd:       kill \$(pidof espd-arm64)"
+echo "   （只杀 espd 没用 —— supervisor 是守护进程，会立刻重启它）"
 echo "=========================================="

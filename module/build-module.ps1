@@ -1,4 +1,4 @@
-<#
+﻿<#
   build-module.ps1 (v2) — 把 module/ + esp/ 打成可刷入的 KernelSU/Magisk 模块 zip
 
   新架构：进程外只读（espd），不再需要 gadget / Zygisk / ZygiskFrida。
@@ -26,16 +26,26 @@ $stage = Join-Path $dist '_stage'
 if (!$Out) { $Out = Join-Path $dist 'esp_local-module.zip' }
 New-Item -ItemType Directory -Force $dist | Out-Null
 
-# -------- espd 二进制：缺失时尝试从 tools\espd\dist 拷入 --------
+# -------- espd 二进制：始终以 tools\espd\dist 为准同步 --------
+# 注意不能写成「只有缺失才拷」——那样重编译后打包出去的永远是旧二进制，
+# zip 里 34,936 B、dist 里 35,376 B，肉眼看不出来。
 $bin = Join-Path $PSScriptRoot 'bin'
 $espd = Join-Path $bin 'espd-arm64'
-if (!(Test-Path $espd)) {
-  $built = Join-Path $repo 'tools\espd\dist\espd-arm64'
-  if (Test-Path $built) {
+$built = Join-Path $repo 'tools\espd\dist\espd-arm64'
+if (Test-Path $built) {
+  $stale = $true
+  if (Test-Path $espd) {
+    $stale = (Get-FileHash $espd -Algorithm MD5).Hash -ne (Get-FileHash $built -Algorithm MD5).Hash
+  }
+  if ($stale) {
     New-Item -ItemType Directory -Force $bin | Out-Null
-    Copy-Item $built $espd
-    Write-Host '[0/3] 从 tools\espd\dist 拷入 espd-arm64'
-  } elseif (!$AllowNoEspd) {
+    Copy-Item $built $espd -Force
+    Write-Host '[0/3] 同步 espd-arm64 <- tools\espd\dist'
+  } else {
+    Write-Host '[0/3] espd-arm64 已是最新'
+  }
+} elseif (!(Test-Path $espd)) {
+  if (!$AllowNoEspd) {
     throw "缺少 $espd（先跑 tools\espd\build.ps1，或加 -AllowNoEspd 跳过）"
   }
 }

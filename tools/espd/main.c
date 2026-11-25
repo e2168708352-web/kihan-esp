@@ -281,22 +281,45 @@ static void resolve_reset(resolve_ctx *r, int pid, uint64_t base,
     r->pid = pid;
     r->il2cpp_base = base;
 
-    if (scan_find_class(pid, maps, so,
-            conf_get(cfg,"pvp_ns","KH"), conf_get(cfg,"pvp_class","PVPStatis"), &r->pvp) == 0) {
+    /* 三个类一次性解析：堆扫描只做一遍，避免每类重复扫堆 */
+    cls_q qs[3];
+    qs[0].ns = conf_get(cfg, "pvp_ns", "KH");
+    qs[0].name = conf_get(cfg, "pvp_class", "PVPStatis");
+    qs[1].ns = conf_get(cfg, "camera_ns", "UnityEngine");
+    qs[1].name = conf_get(cfg, "camera_class", "Camera");
+    qs[2].ns = "UnityEngine";
+    qs[2].name = "Transform";
+
+    ic_class cs[3];
+    memset(cs, 0, sizeof cs);
+    int all = scan_find_classes(pid, maps, so, qs, cs, 3);
+
+    if (cs[0].klass) {
+        r->pvp = cs[0];
         r->ok_pvp =
             scan_field_by_name(pid, &r->pvp, conf_get(cfg,"pvp_static_field","statis"), &r->f_statis) == 0 &&
             scan_field_by_name(pid, &r->pvp, conf_get(cfg,"field_my_actor","m_myPlayerCtrl"), &r->f_my) == 0 &&
             scan_field_by_name(pid, &r->pvp, conf_get(cfg,"field_enemy_actor","m_enemyPlayerCtrl"), &r->f_en) == 0;
     }
-    r->ok_cam = (scan_find_class(pid, maps, so,
-            conf_get(cfg,"camera_ns","UnityEngine"), conf_get(cfg,"camera_class","Camera"), &r->cam) == 0);
+
+    if (cs[1].klass) {
+        r->cam = cs[1];
+        r->ok_cam = 1;
+    }
     r->cached_cam_obj = 0;
 
-    r->ok_tr = (scan_find_class(pid, maps, so, "UnityEngine", "Transform", &r->tr) == 0) &&
-        scan_field_by_name(pid, &r->tr, conf_get(cfg,"field_local_position","m_LocalPosition"), &r->f_pos) == 0 &&
-        scan_field_by_name(pid, &r->tr, conf_get(cfg,"field_local_rotation","m_LocalRotation"), &r->f_rot) == 0 &&
-        scan_field_by_name(pid, &r->tr, conf_get(cfg,"field_local_scale","m_LocalScale"), &r->f_scale) == 0 &&
-        scan_field_by_name(pid, &r->tr, conf_get(cfg,"field_father","m_Father"), &r->f_father) == 0;
+    if (cs[2].klass) {
+        r->tr = cs[2];
+        r->ok_tr =
+            scan_field_by_name(pid, &r->tr, conf_get(cfg,"field_local_position","m_LocalPosition"), &r->f_pos) == 0 &&
+            scan_field_by_name(pid, &r->tr, conf_get(cfg,"field_local_rotation","m_LocalRotation"), &r->f_rot) == 0 &&
+            scan_field_by_name(pid, &r->tr, conf_get(cfg,"field_local_scale","m_LocalScale"), &r->f_scale) == 0 &&
+            scan_field_by_name(pid, &r->tr, conf_get(cfg,"field_father","m_Father"), &r->f_father) == 0;
+    }
+
+    /* 全部命中时清掉可能残留的警告，避免下次成功还打旧诊断 */
+    if (all == 0 && r->ok_pvp && r->ok_cam && r->ok_tr)
+        scan_set_warn("%s", "");
 }
 
 /* Transform 父链累乘 → 世界位置 + 从旋转矩阵反推世界四元数 */
@@ -409,6 +432,7 @@ static int mode_daemon(const opts *o) {
         conf_free(&cfg);
         return 11;
     }
+    (void)lockfd;   /* fd 故意不关，随进程退出由内核释放 */
 
     int port = o->port_set ? o->port : conf_get_int(&cfg, "port", ESPD_DEFAULT_PORT);
     int interval = o->interval_set ? o->interval : conf_get_int(&cfg, "interval_ms", 33);
@@ -435,6 +459,8 @@ static int mode_daemon(const opts *o) {
     resolve_ctx r;
     memset(&r, 0, sizeof r);
     int loaded = 0;
+    int resolve_tries = 0;
+    uint64_t last_resolve_ms = 0;
     long frames = 0, errors = 0, sent = 0, drops = 0, behind = 0;
     uint64_t t0 = now_ms();
 
@@ -442,7 +468,12 @@ static int mode_daemon(const opts *o) {
              o->pkg, o->so, port, interval, domain);
 
     while (!g_stop) {
-        int pid = vm_find_pid(o->pkg);
+        /* PID 缓存：kill(pid,0) 只判存活，没必要每帧（30 次/秒）全扫 /proc。
+         * 只有 ESRCH 才说明进程真的没了；EPERM/EACCES 表示进程在、只是跨域
+         * 无权发信号，仍按存活处理。 */
+        int pid = r.pid;
+        if (pid > 0 && kill(pid, 0) != 0 && errno == ESRCH) pid = -1;
+        if (pid <= 0) pid = vm_find_pid(o->pkg);
         if (pid < 0) {
             if (r.pid > 0) espd_log("游戏进程退出 pid=%d", r.pid);
             memset(&r, 0, sizeof r);
@@ -462,17 +493,25 @@ static int mode_daemon(const opts *o) {
             }
             loaded = 1;
             need_resolve = 1;
+            resolve_tries = 0;
         } else if (frames % 120 == 0 && loaded) {
             vm_maps fresh;
             if (vm_load_maps(pid, &fresh) == 0) {
                 uint64_t base = vm_module_base(&fresh, o->so);
                 vm_free_maps(&maps);
                 maps = fresh;
-                if (base != r.il2cpp_base) need_resolve = 1;   /* 基址变了才重解析 */
+                if (base != r.il2cpp_base) { need_resolve = 1; resolve_tries = 0; }   /* 基址变了才重解析 */
             }
+            /* il2cpp 的类表是惰性填充的：libil2cpp.so 刚映射时目标类可能还不存在。
+             * 解析失败就重试，但间隔 15s、最多 8 次 —— 全量扫堆会拉高目标进程 RSS，
+             * 手机空闲内存只有 1GB 出头，扫太勤会把游戏挤掉。 */
+            if (!need_resolve && !(r.ok_pvp && r.ok_cam && r.ok_tr) &&
+                resolve_tries < 8 && now_ms() - last_resolve_ms > 15000)
+                need_resolve = 1;
         }
 
         if (need_resolve) {
+            resolve_tries++;
             uint64_t base = vm_module_base(&maps, o->so);
             if (!base) {
                 /* il2cpp 还没加载（进程刚起，或还在闪屏）。
@@ -483,10 +522,16 @@ static int mode_daemon(const opts *o) {
                 continue;
             }
             resolve_reset(&r, pid, base, &maps, o->so, &cfg);
+            last_resolve_ms = now_ms();
             espd_log("resolved pid=%d il2cpp=%#llx pvp=%d cam=%d tr=%d",
                      pid, (unsigned long long)base, r.ok_pvp, r.ok_cam, r.ok_tr);
             if (!r.ok_pvp || !r.ok_tr || !r.ok_cam)
                 espd_log("  解析诊断: %s", scan_last_error());
+            else {
+                char hs[160];
+                scan_heap_stats(hs, sizeof hs);
+                espd_log_quiet("  %s", hs);
+            }
         }
 
         /* 相机：Camera 实例 → transform → 世界位姿 */
@@ -581,8 +626,12 @@ static int mode_daemon(const opts *o) {
                 frames, sent, errors, drops, behind, cam_ok, r.ok_pvp,
                 (unsigned long long)(now_ms() - t0), domain);
             if (sl > 0 && (size_t)sl < sizeof st) write_file_atomic(status_path, st, (size_t)sl);
-            espd_log_quiet("frames=%ld sent=%ld err=%ld cam=%d pvp=%d", frames, sent, errors, cam_ok, r.ok_pvp);
         }
+        /* 日志每 300 帧（约 10s）一行：状态文件 1s 一写够用了，
+         * 日志每秒一行会把 200 行轮转窗口压到只剩 3 分钟，真实事件全被淹掉。 */
+        if (frames % 300 == 0)
+            espd_log_quiet("frames=%ld sent=%ld err=%ld drops=%ld behind=%ld cam=%d pvp=%d",
+                           frames, sent, errors, drops, behind, cam_ok, r.ok_pvp);
 
         if (o->once) break;
         usleep((useconds_t)(interval * 1000));

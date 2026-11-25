@@ -14,15 +14,55 @@
 
 static int g_logfd = -1;
 static char g_logpath[512];
+static int g_log_is_stderr = 0;   /* stderr 已指向日志文件，别再开第二份 */
 
 void espd_log_open(const char *path) {
-    if (g_logfd >= 0) return;
+    if (g_logfd >= 0 || g_log_is_stderr) return;
     snprintf(g_logpath, sizeof g_logpath, "%s", path);
+
+    /* 调用方（supervisor / 手工 `>>espd.log 2>&1`）可能已经把 stderr
+     * 重定向到同一个文件。此时再开一份 fd 会把每行写两遍，所以只留 stderr
+     * 这一路，轮转也改走 stderr 的 fd。 */
+    struct stat sfd, spath;
+    if (fstat(STDERR_FILENO, &sfd) == 0 && S_ISREG(sfd.st_mode) &&
+        stat(path, &spath) == 0 &&
+        sfd.st_dev == spath.st_dev && sfd.st_ino == spath.st_ino) {
+        g_log_is_stderr = 1;
+        return;
+    }
     g_logfd = open(path, O_WRONLY | O_CREAT | O_APPEND, 0644);
 }
 
 void espd_log_close(void) {
     if (g_logfd >= 0) { close(g_logfd); g_logfd = -1; }
+}
+
+/* 日志轮转：>256KB 只保留最后 200 行。
+ * 长期挂机时这是唯一会增长的文件，必须自限。
+ * 必须原地截断（ftruncate）而不是 tail+mv 换 inode —— 后者会让另一个
+ * 持有 O_APPEND fd 的写入方（daemon 自己 / supervisor 重定向的 stderr）
+ * 继续往已删除的旧 inode 里写，日志凭空丢一段。 */
+static void rotate_log(int fd) {
+    struct stat st;
+    if (fstat(fd, &st) != 0 || !S_ISREG(st.st_mode) || st.st_size <= 262144) return;
+
+    static char lines[200][256];
+    int keep = 0;
+    FILE *lf = fopen(g_logpath, "r");
+    if (lf) {
+        char tmp[256];
+        while (fgets(tmp, sizeof tmp, lf)) {
+            snprintf(lines[keep % 200], sizeof lines[0], "%s", tmp);
+            keep++;
+        }
+        fclose(lf);
+    }
+    if (ftruncate(fd, 0) != 0) return;
+    int from = keep > 200 ? keep - 200 : 0;
+    for (int i = from; i < keep; i++) {
+        const char *s = lines[i % 200];
+        if (write(fd, s, strlen(s)) < 0) break;
+    }
 }
 
 static void vlog(int to_stderr, const char *fmt, va_list ap) {
@@ -45,35 +85,12 @@ static void vlog(int to_stderr, const char *fmt, va_list ap) {
         fputs(line, stderr);
         fputc('\n', stderr);
         fflush(stderr);
+        if (g_log_is_stderr) rotate_log(STDERR_FILENO);
     }
     if (g_logfd >= 0) {
-        /* 日志轮转：超过 256KB 只保留最后 200 行。
-         * 长期挂机时这是唯一会增长的文件，必须自限。 */
-        struct stat st;
-        if (fstat(g_logfd, &st) == 0 && st.st_size > 262144) {
-            espd_log_close();
-            char lines[200][256];
-            int keep = 0;
-            FILE *lf = fopen(g_logpath, "r");
-            if (lf) {
-                char tmp[256];
-                while (fgets(tmp, sizeof tmp, lf)) {
-                    snprintf(lines[keep % 200], sizeof lines[0], "%s", tmp);
-                    keep++;
-                }
-                fclose(lf);
-            }
-            g_logfd = open(g_logpath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-            if (g_logfd >= 0) {
-                int from = keep > 200 ? keep - 200 : 0;
-                for (int i = from; i < keep; i++)
-                    write(g_logfd, lines[i % 200], strlen(lines[i % 200]));
-            }
-        }
-        if (g_logfd >= 0) {
-            write(g_logfd, line, len);
-            write(g_logfd, "\n", 1);
-        }
+        rotate_log(g_logfd);
+        write(g_logfd, line, len);
+        write(g_logfd, "\n", 1);
     }
 }
 

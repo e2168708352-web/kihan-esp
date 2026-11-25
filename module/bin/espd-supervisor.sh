@@ -10,10 +10,13 @@
 # ============================================================================
 
 MOD=${1:-/data/adb/modules/esp_local}
-BIN=$MOD/bin/espd-arm64
-CONF=$MOD/bin/espd.conf
 DIR=/data/local/tmp/.esp
 LOG=$DIR/espd.log
+BIN=$MOD/bin/espd-arm64
+# 模块目录被清理时，回退到 espd_boot.sh 同步出来的副本
+# （否则 espd_boot 里那句「同步到 /data/local/tmp/.esp/bin 防清理」是空话）
+[ -x "$BIN" ] || BIN=$DIR/bin/espd-arm64
+CONF=$MOD/bin/espd.conf
 PIDF=$DIR/supervisor.pid
 GAME=com.tencent.KiHan
 OVERLAY=com.sys.deskhelper
@@ -40,7 +43,7 @@ is_sup_alive() {
   [ -d "/proc/$p" ] || return 1
   c=$(tr '\0' ' ' < "/proc/$p/cmdline" 2>/dev/null)
   case "$c" in
-    *espd-supervisor.sh*) return 0 ;;
+    *espd-supervisor.sh*|*/bin/supervisor.sh*) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -87,18 +90,28 @@ fi
 DW=$MOD/bin/desk-watch.sh
 if [ -f "$DW" ]; then
   chmod 755 "$DW" 2>/dev/null
-  nohup sh "$DW" >/dev/null 2>&1 &
+  if command -v setsid >/dev/null 2>&1; then
+    setsid sh "$DW" </dev/null >/dev/null 2>&1 &
+  else
+    nohup sh "$DW" </dev/null >/dev/null 2>&1 &
+  fi
   log "desk-watch started"
 fi
 
 # ---------- 主循环 ----------
+trap 'rm -f "$PIDF"; exit 0' INT TERM
+
 fails=0
 last=0
 while true; do
-  rotate
+  # 已有 daemon（上一次 supervisor 被 kill -9 后残留）→ 只监控，不抢锁重启。
+  # 抢锁重启会让 daemon 退出码 11、nap 一路涨到 60s，日志刷无用行。
+  if pidof espd-arm64 >/dev/null 2>&1; then
+    sleep 10
+    continue
+  fi
 
-  # 退出时清 PID 文件
-  trap 'rm -f "$PIDF"; exit 0' INT TERM
+  rotate
 
   "$BIN" daemon --dir "$DIR" --pkg "$GAME"
   rc=$?

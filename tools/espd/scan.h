@@ -19,6 +19,7 @@
 #include "vm.h"
 
 #define SCAN_MAX_FIELDS 256
+#define SCAN_MAX_QUERIES 8
 
 typedef struct {
     uint64_t klass;
@@ -37,6 +38,22 @@ typedef struct {
 } ic_field;
 
 /* 每次都基于最新 maps 工作；内部只做少量缓存，可以放心反复调用 */
+/* 一次解析多个类。il2cpp 的 Il2CppClass 在 native 堆里，一次堆扫描可以
+ * 同时服务所有待解析的类；逐个调用 scan_find_class 会重复扫堆（很贵）。
+ * 返回 0 表示全部解析成功；失败时 outs[i].klass == 0，且 scan_last_error()
+ * 里会列出所有失败项 + 堆扫描统计。 */
+typedef struct {
+    const char *ns;
+    const char *name;
+} cls_q;
+
+int  scan_find_classes(int pid, const vm_maps *m, const char *soname,
+                       const cls_q *qs, ic_class *outs, int nq);
+
+/* 最近一次堆扫描的统计串（段数/字节/耗时/命中数/是否截断） */
+void scan_heap_stats(char *out, size_t cap);
+
+/* 单类解析（内部就是 scan_find_classes 的 nq=1 包装） */
 int  scan_find_class(int pid, const vm_maps *m, const char *soname,
                      const char *ns, const char *name, ic_class *out);
 

@@ -101,6 +101,14 @@
     return-void
 .end method
 
+.method public static synthetic $r8$lambda$kQ7pXn2vC5mR9tWb1dHs4yLgU3o(Lcom/lcs/esp/MainActivity;Landroid/view/View;)V
+    .locals 0
+
+    invoke-static {p0, p1}, Lcom/lcs/esp/MainActivity;->onCreate$lambda$15$lambda$14(Lcom/lcs/esp/MainActivity;Landroid/view/View;)V
+
+    return-void
+.end method
+
 .method public constructor <init>()V
     .locals 1
 
@@ -407,8 +415,68 @@
 
 
 # virtual methods
+.method private static final onCreate$lambda$15$lambda$14(Lcom/lcs/esp/MainActivity;Landroid/view/View;)V
+    .locals 5
+
+    const-string p1, "this$0"
+
+    invoke-static {p0, p1}, Lkotlin/jvm/internal/Intrinsics;->checkNotNullParameter(Ljava/lang/Object;Ljava/lang/String;)V
+
+    .line 97
+    iget-object v0, p0, Lcom/lcs/esp/MainActivity;->sb:Ljava/lang/StringBuilder;
+
+    invoke-virtual {v0}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
+
+    move-result-object v0
+
+    .line 98
+    move-object v1, p0
+
+    check-cast v1, Landroid/content/Context;
+
+    const-string v2, "clipboard"
+
+    invoke-virtual {v1, v2}, Landroid/content/Context;->getSystemService(Ljava/lang/String;)Ljava/lang/Object;
+
+    move-result-object v1
+
+    check-cast v1, Landroid/content/ClipboardManager;
+
+    .line 99
+    const-string v2, "esp.log"
+
+    check-cast v2, Ljava/lang/CharSequence;
+
+    check-cast v0, Ljava/lang/CharSequence;
+
+    invoke-static {v2, v0}, Landroid/content/ClipData;->newPlainText(Ljava/lang/CharSequence;Ljava/lang/CharSequence;)Landroid/content/ClipData;
+
+    move-result-object v2
+
+    invoke-virtual {v1, v2}, Landroid/content/ClipboardManager;->setPrimaryClip(Landroid/content/ClipData;)V
+
+    .line 100
+    move-object v1, p0
+
+    check-cast v1, Landroid/content/Context;
+
+    const-string v2, "\u5df2\u590d\u5236\u5230\u526a\u8d34\u677f"
+
+    check-cast v2, Ljava/lang/CharSequence;
+
+    const/4 v3, 0x0
+
+    invoke-static {v1, v2, v3}, Landroid/widget/Toast;->makeText(Landroid/content/Context;Ljava/lang/CharSequence;I)Landroid/widget/Toast;
+
+    move-result-object v1
+
+    invoke-virtual {v1}, Landroid/widget/Toast;->show()V
+
+    return-void
+.end method
+
 .method protected onCreate(Landroid/os/Bundle;)V
-    .locals 11
+    .locals 12
 
     .line 32
     invoke-super {p0, p1}, Landroid/app/Activity;->onCreate(Landroid/os/Bundle;)V
@@ -462,6 +530,10 @@
     invoke-virtual {p1, v1}, Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V
 
     .line 39
+    const/4 v1, 0x1
+
+    invoke-virtual {p1, v1}, Landroid/widget/TextView;->setTextIsSelectable(Z)V
+
     iput-object p1, p0, Lcom/lcs/esp/MainActivity;->logView:Landroid/widget/TextView;
 
     .line 43
@@ -581,6 +653,24 @@
 
     invoke-virtual {v7, v8}, Landroid/widget/Button;->setOnClickListener(Landroid/view/View$OnClickListener;)V
 
+    .line 96
+    new-instance v11, Landroid/widget/Button;
+
+    invoke-direct {v11, v0}, Landroid/widget/Button;-><init>(Landroid/content/Context;)V
+
+    .line 97
+    const-string v8, "\u590d\u5236\u65e5\u5fd7"
+
+    check-cast v8, Ljava/lang/CharSequence;
+
+    invoke-virtual {v11, v8}, Landroid/widget/Button;->setText(Ljava/lang/CharSequence;)V
+
+    new-instance v8, Lcom/lcs/esp/MainActivity$$ExternalSyntheticLambda6;
+
+    invoke-direct {v8, p0}, Lcom/lcs/esp/MainActivity$$ExternalSyntheticLambda6;-><init>(Lcom/lcs/esp/MainActivity;)V
+
+    invoke-virtual {v11, v8}, Landroid/widget/Button;->setOnClickListener(Landroid/view/View$OnClickListener;)V
+
     .line 98
     new-instance v8, Landroid/widget/LinearLayout;
 
@@ -641,6 +731,11 @@
     check-cast v7, Landroid/view/View;
 
     invoke-virtual {v8, v7}, Landroid/widget/LinearLayout;->addView(Landroid/view/View;)V
+
+    .line 107
+    check-cast v11, Landroid/view/View;
+
+    invoke-virtual {v8, v11}, Landroid/widget/LinearLayout;->addView(Landroid/view/View;)V
 
     .line 108
     check-cast p1, Landroid/view/View;

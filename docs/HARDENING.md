@@ -52,6 +52,9 @@ espd 跨进程读其他 app      elf_ok=1  tracerpid=0
 压法（按改造量排序）：
 
 1. **只在游戏前台时创建窗口**，退出立即销毁 —— 去掉常驻前台服务，非对局时段看不到 overlay。改动小，收益中。
+   → **已实现**：`bin/desk-watch.sh` 每 5s 校验一次，游戏进程出现才 `start-foreground-service`，
+   游戏退出即 `stopservice`（只摘服务、不 force-stop，避免被 zygote 反复拉起）；
+   对局中服务被系统回收也会自动恢复（15s 节流）。
 2. **包名/图标伪装成系统组件**（如 `com.android.systemui.overlay` 之类），用 release key 签名。改动小，收益中。
 3. **不用 APK**：espd 直接用 `SurfaceControl` 建 overlay（root 有 `ACCESS_SURFACE_FLINGER`）。没有包名、安装记录、权限声明可查。改造量大（~200 行 native + 输入穿透），收益最高。
 

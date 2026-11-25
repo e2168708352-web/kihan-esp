@@ -165,10 +165,18 @@ uint64_t vm_find_bytes(int pid, uint64_t addr, size_t len,
         if (vm_read(pid, addr + done, buf, want) != 0) break;
 
         size_t limit = (want >= nlen) ? (want - nlen + 1) : 0;
-        for (size_t i = 0; i < limit; i++) {
-            if (memcmp(buf + i, needle, nlen) == 0) {
-                found = addr + done + i;
-                break;
+        if (limit) {
+            /* 先用 memchr 跳到首字节，再用 memcmp 确认：比逐字节 memcmp 快一个量级 */
+            const unsigned char *base = buf;
+            const unsigned char *p = base;
+            const unsigned char *end = base + limit;
+            const unsigned char nb0 = ((const unsigned char *)needle)[0];
+            while ((p = memchr(p, nb0, (size_t)(end - p))) != NULL) {
+                if (memcmp(p, needle, nlen) == 0) {
+                    found = addr + done + (uint64_t)(p - base);
+                    break;
+                }
+                p++;
             }
         }
         if (found) break;

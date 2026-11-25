@@ -463,114 +463,7 @@
     invoke-interface {p2, v0}, Lkotlin/jvm/functions/Function1;->invoke(Ljava/lang/Object;)Ljava/lang/Object;
 
     .line 73
-    new-instance v0, Ljava/lang/StringBuilder;
-
-    const-string v3, "M=/data/adb/modules/esp_local; mkdir -p /data/local/tmp/.esp\necho ===module===\ncat $M/module.prop 2>/dev/null || echo NO_MODULE\necho ===restart-espd===\nkill $(pidof espd-arm64) 2>/dev/null; sleep 1; nohup sh $M/bin/espd-supervisor.sh $M >/dev/null 2>&1 & sleep 3\necho ===espd===\npidof espd-arm64 || echo NOT_RUNNING\necho ===done===\n"
-
-    invoke-direct {v0, v3}, Ljava/lang/StringBuilder;-><init>(Ljava/lang/String;)V
-
-    .line 75
-    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
-
-    move-result-object v3
-
-    const-string v4, ""
-
-    invoke-virtual {v3, v4}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
-
-    .line 76
-    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
-
-    move-result-object v3
-
-    const-string v4, ""
-
-    invoke-virtual {v3, v4}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
-
-    .line 77
-    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
-
-    move-result-object v3
-
-    const-string v4, ""
-
-    invoke-virtual {v3, v4}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
-
-    .line 78
-    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
-
-    move-result-object v3
-
-    const-string v4, ""
-
-    invoke-virtual {v3, v4}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
-
-    .line 79
-    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
-
-    move-result-object v3
-
-    const-string v4, ""
-
-    invoke-virtual {v3, v4}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
-
-    .line 80
-    invoke-interface {p1}, Ljava/lang/CharSequence;->length()I
-
-    move-result p1
-
-    if-lez p1, :cond_6
-
-    .line 81
-    const-string p1, ""
-
-    invoke-virtual {v0, p1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
-
-    move-result-object p1
-
-    .line 82
-    invoke-virtual {p1, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
-
-    move-result-object p1
-
-    const-string v3, ""
-
-    invoke-virtual {p1, v3}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
-
-    move-result-object p1
-
-    .line 83
-    invoke-virtual {p1, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
-
-    move-result-object p1
-
-    const-string v3, ""
-
-    invoke-virtual {p1, v3}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
-
-    .line 85
-    :cond_6
-    const-string p1, ""
-
-    invoke-virtual {v0, p1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
-
-    .line 94
-    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
-
-    move-result-object p1
-
-    const-string v1, "echo ===espd===; pidof espd-arm64 || echo NOT_RUNNING; echo ===module===; cat /data/adb/modules/esp_local/module.prop 2>/dev/null || echo NO_MODULE; echo ===status===; cat /data/local/tmp/.esp/status.json 2>/dev/null || echo NO_STATUS; echo ===log===; tail -n 20 /data/local/tmp/.esp/espd.log 2>/dev/null || echo NO_LOG; echo ===game===; pidof com.tencent.KiHan || echo none\n"
-
-    invoke-virtual {p1, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;
-
-    .line 102
-    invoke-virtual {v0}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;
-
-    move-result-object p1
-
-    const-string v0, "toString(...)"
-
-    invoke-static {p1, v0}, Lkotlin/jvm/internal/Intrinsics;->checkNotNullExpressionValue(Ljava/lang/Object;Ljava/lang/String;)V
+    const-string p1, "echo ===deploy===\nsh /data/adb/modules/esp_local/bin/espd_boot.sh\necho ===done===\necho ===espd===; pidof espd-arm64 || echo NOT_RUNNING; echo ===module===; cat /data/adb/modules/esp_local/module.prop 2>/dev/null || echo NO_MODULE; echo ===status===; cat /data/local/tmp/.esp/status.json 2>/dev/null || echo NO_STATUS; echo ===log===; tail -n 20 /data/local/tmp/.esp/espd.log 2>/dev/null || echo NO_LOG; echo ===game===; pidof com.tencent.KiHan || echo none\n"
 
     invoke-virtual {p0, p1}, Lcom/lcs/esp/Setup;->sh(Ljava/lang/String;)Ljava/lang/String;
 
@@ -637,7 +530,7 @@
 
     .line 104
     :cond_8
-    const-string v1, "libhw.config.json"
+    const-string v1, "===done==="
 
     check-cast v1, Ljava/lang/CharSequence;
 
@@ -649,7 +542,19 @@
 
     move-result v1
 
-    if-eqz v1, :cond_9
+    if-nez v1, :cond_9
+
+    const-string v1, "NOT_RUNNING"
+
+    check-cast v1, Ljava/lang/CharSequence;
+
+    invoke-static {p1, v1, v2, v3, v4}, Lkotlin/text/StringsKt;->contains$default(Ljava/lang/CharSequence;Ljava/lang/CharSequence;ZILjava/lang/Object;)Z
+
+    move-result v1
+
+    xor-int/lit8 v1, v1, 0x1
+
+    if-nez v1, :cond_9
 
     const-string v1, "ERR:"
 
@@ -657,9 +562,11 @@
 
     invoke-static {p1, v1, v2, v3, v4}, Lkotlin/text/StringsKt;->contains$default(Ljava/lang/CharSequence;Ljava/lang/CharSequence;ZILjava/lang/Object;)Z
 
-    move-result p1
+    move-result v1
 
-    if-nez p1, :cond_9
+    xor-int/lit8 v1, v1, 0x1
+
+    if-nez v1, :cond_9
 
     move v2, v0
 
@@ -686,7 +593,7 @@
     .line 146
     const-string v0, "toString(...)"
 
-    const-string v1, "M=/data/adb/modules/esp_local; kill $(pidof espd-arm64) 2>/dev/null; sleep 1; nohup sh $M/bin/espd-supervisor.sh $M >/dev/null 2>&1 & sleep 3; p=$(pidof espd-arm64); if test -n $p; then echo reloaded pid=$p; else echo reload_failed; fi"
+    const-string v1, "sh /data/adb/modules/esp_local/bin/espd_boot.sh | tail -12"
 
     invoke-static {v1, v0}, Lkotlin/jvm/internal/Intrinsics;->checkNotNullExpressionValue(Ljava/lang/Object;Ljava/lang/String;)V
 
