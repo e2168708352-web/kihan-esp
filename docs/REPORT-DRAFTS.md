@@ -14,13 +14,13 @@
 
 | 资产 | SHA256 | 说明 |
 |---|---|---|
-| `module/bin/espd-arm64` | `495632a41828867d7a4c32da18ddecdfa9466dfec2ce3f19db5db9ad210d93dd` | 仓库内预编译守护进程 |
-| `overlay/dist/esp.apk` | `E9F11D1F1038772BB0F207FCFE22316C3FE12AF1CB66C5AD88F1DCB6A29510BA` | 悬浮窗 APK（debug 签名） |
+| `module/bin/espd-arm64` | `42F5977516199E9EB4C4D83BBB83A7FDE0E5BCA0F417F1AFD741FF8991D6EB01` | 仓库内预编译守护进程（39,232 B） |
+| `overlay/dist/esp.apk` | `E61BE0464501E54BD9A64302215A061341618329605C0982B26CA4B2B6DBDBAB` | 悬浮窗 APK（debug 签名） |
 
-- APK SHA256：`E9F11D1F1038772BB0F207FCFE22316C3FE12AF1CB66C5AD88F1DCB6A29510BA`
+- APK SHA256：`E61BE0464501E54BD9A64302215A061341618329605C0982B26CA4B2B6DBDBAB`
 - 签名证书 DN：`CN=Android Debug, O=Android, C=US`（**debug 签名，非官方 release key**）
 - 签名证书 SHA-256 指纹：`3AB6D3276D2B1EDFFCB8213C295BE0BD7BA283C52C1DCBABC2531CE60D1F7E5E`
-- 对应 commit：`f6746f6e80522975b5cc55f4c2602e611d48c219`（2026-11-25）
+- 对应 commit：`a2d20f6c2c4aaa0eaeea5b8afb670a37633df32d`（2026-11-26）
 - 构建环境：NDK 28.2 / clang 19、apktool 3.x、Android build-tools 34.0.0、JDK 17+
 
 > **基线本身需要人类决策**：当前 APK 是 debug 签名且提交在主分支，与"官方 Releases 唯一入口 + release 签名指纹"的目标不符。见 `SECURITY.md` 与文末决策项。
@@ -42,16 +42,32 @@
 - 后续：是否已写入 SECURITY.md 公告 / 是否生成举报草稿
 ```
 
-### 本次巡查（2026-11-26）实际结果
+### 巡查记录 2026-11-26（两次）
+
+第一次（哈希未鉴权环境）：
 
 | 项目 | 结果 |
 |---|---|
 | 搜索引擎（Bing，关键词 `"kihan-esp" APK 下载`） | 返回结果与项目无关（金融/证券类页面），**未发现冒名分发页** |
-| GitHub Releases API | 返回 403（未鉴权限流），本次**无法确认是否已有 Release** |
-| GitHub 仓库元数据 API | 返回 403（限流），fork 数/归档状态本次未取到 |
-| 结论 | **未取得可证实的冒名渠道证据**；不生成举报草稿、不发公告。等可鉴权环境或人工浏览器复核 |
+| GitHub Releases API | 返回 403（未鉴权限流），本次无法确认是否已有 Release |
+| GitHub 仓库元数据 API | 返回 403（限流），fork 数/归档状态未取到 |
+
+第二次（浏览器直连仓库页面复核）：
+
+| 项目 | 结果 |
+|---|---|
+| 仓库页面内嵌元数据 | `forksCount=0`、`stargazerCount=0`、`watcherCount=0`、`isArchived=false` |
+| GitHub 全站仓库搜索 `kihan-esp` / `kihan esp` | 只有官方仓库 `e2168708352-web/kihan-esp` 本身，无同名/仿冒仓库 |
+| Bing：`kihan-esp` + QQ群 / 网盘 / 付费 | 无相关结果（返回无关内容） |
+| Bing：`site:pan.baidu.com` / `site:qq.com` + `kihan-esp` | 「没有与此相关的结果」 |
+| Bing：`火影忍者手游 ESP 下载` | 「没有与此相关的结果」 |
+| Google：`kihan-esp` 及组合词 | 搜索端点返回跳转页，无有效结果 |
+| Releases 页面 | `NO_RELEASES`（官方入口存在但尚未发布任何产物） |
+
+**结论**：两次巡查均**未取得可证实的冒名渠道证据**；不生成举报草稿、不发公告。0 fork、0 star、0 冒名仓库、0 可检索到的第三方分发页。
 
 > 搜索端点配置问题：`web_search` 报 DeepSeek API 401（搜索端点与聊天端点分离）。需要在插件设置里配置可用的 Web search 端点；此项属于人类操作。
+> 搜索盲区：私聊、封闭 QQ 群、未索引的网盘分享、刚上线未收录的页面，公开搜索查不到。「没搜到」≠「绝对没人分发」。
 
 ---
 
