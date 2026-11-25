@@ -1,3 +1,12 @@
+> [!IMPORTANT]
+> **个人学习 / 研究用途声明**
+>
+> 本项目仅限个人学习与研究，**禁止商业盈利、付费分发、捆绑销售**，禁止用于恶意软件、窃密、破坏或冒名官方分发。
+>
+> **唯一官方分发入口**是本仓库的 [GitHub Releases 页面](https://github.com/e2168708352-web/kihan-esp/releases)。任何非 Releases 页面（QQ 群 / 网盘 / 第三方站点 / 收费群）提供的安装包均**非官方**，作者不担保，风险自负。
+>
+> 官方**不会**索要账号密码、要求关闭安全软件，也不会通过 QQ 群 / 网盘直发安装包。详见 [SECURITY.md](SECURITY.md)。
+
 # kihan-esp
 
 火影忍者手游（`com.tencent.KiHan`，Unity + il2cpp）的**进程外只读** ESP 实现：root 守护进程 `espd` 站在游戏外面用 `process_vm_readv` 读内存、投影，通过 UDP 把坐标发给悬浮窗画。**游戏进程零注入、零线程、零外来 so、零文件写入**——不需要 Zygisk / ZygiskFrida / Frida gadget，不需要重启 zygote，不需要重启手机。
@@ -99,6 +108,18 @@ su -c "sh -c '/data/adb/modules/esp_local/bin/espd-arm64 scan Transform UnityEng
 - **不需要** Zygisk / ZygiskFrida
 - 构建：本地 NDK 28.2（clang 19），零下载；不需要 cmake
 
+## 访问范围与网络目标
+
+守护进程 `espd` 坚持最小权限、只读、无隐蔽网络上报：
+
+- **权限**：root（KernelSU / Magisk / APatch），运行在 `u:r:ksu:s0` 域。
+- **内存访问**：仅对目标游戏进程用 `process_vm_readv` **只读**；不写目标内存、不 ptrace attach（`TracerPid=0`）、不做 inline hook。
+- **文件访问**：仅读写自身工作目录 `/data/local/tmp/.esp/`；**不写游戏目录一个字节**。
+- **网络目标**：仅 UDP `127.0.0.1:29000`（本机回环，发往悬浮窗）；**无外网连接、无远程上报**。
+- **动态加载**：不加载不明 `dex` / `so`，不从远程拉取可执行文件。
+
+详见 [SECURITY.md](SECURITY.md) 与 [docs/HARDENING.md](docs/HARDENING.md)。
+
 ### 临时 root 特别注意
 
 如果 root 是**运行时临时获取的**（内核没打 KSU 补丁，**完整重启**后 `su` 消失），`service.d` 不会开机自启，需要重新获取 root 后手动跑一次启动脚本：
@@ -119,6 +140,8 @@ adb shell 'su -c "sh /data/local/tmp/espd_boot.sh"'
 - [docs/DEPLOY.md](docs/DEPLOY.md) — 构建、刷入、诊断、排错
 - [docs/HARDENING.md](docs/HARDENING.md) — 暴露面分析与加固方向
 - [docs/SECURITY-ASSESSMENT.md](docs/SECURITY-ASSESSMENT.md) — 对抗反作弊的安全性量化评估（逐项打分）
+- [SECURITY.md](SECURITY.md) — 唯一官方分发入口、构建校验、非官方渠道声明、访问范围
+- [docs/REPORT-DRAFTS.md](docs/REPORT-DRAFTS.md) — 巡查记录与举报草稿（内部）
 - [docs/LEGACY-gadget.md](docs/LEGACY-gadget.md) — 旧注入架构归档（已弃用）
 
 ## 已知限制
