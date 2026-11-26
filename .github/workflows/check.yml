@@ -36,14 +36,20 @@ jobs:
       - name: 模块必需文件齐全 + 无旧架构残留
         run: |
           for f in module/module.prop module/service.d/97_espd.sh \
-                   module/bin/espd-arm64 module/bin/espd-supervisor.sh \
+                   module/bin/espd-supervisor.sh \
                    module/bin/espd.conf module/bin/espd_boot.sh \
                    module/bin/desk-watch.sh \
                    docs/TEMP-ROOT.md docs/SECURITY-ASSESSMENT.md \
                    module/META-INF/com/google/android/update-binary \
-                   overlay/dist/esp.apk overlay/art/ic_launcher.png \
-                   tools/espd/main.c; do
+                   overlay/art/ic_launcher.png \
+                   tools/espd/main.c tools/espd/build.ps1 \
+                   overlay/build.ps1 module/build-module.ps1; do
             test -s "$f" || { echo "missing or empty: $f"; exit 1; }
           done
           test ! -e module/service.d/97_esp_module.sh || { echo "legacy keeper still present"; exit 1; }
           test ! -e module/post-fs-data.sh || { echo "legacy post-fs-data still present"; exit 1; }
+
+      - name: 主分支不含预编译二进制
+        run: |
+          test ! -e module/bin/espd-arm64 || { echo "espd-arm64 should not be committed (publish via Releases)"; exit 1; }
+          test ! -e overlay/dist/esp.apk || { echo "esp.apk should not be committed (publish via Releases)"; exit 1; }

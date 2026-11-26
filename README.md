@@ -154,6 +154,8 @@ adb shell 'su -c "sh /data/local/tmp/espd_boot.sh"'
 
 ## License
 
-MIT，见 [LICENSE](LICENSE)。
+[个人学习与研究专用许可协议 v1.0](LICENSE)（Personal Study & Research License，非 OSI 开源许可）
+
+仅限个人学习与研究；**禁止商业盈利、付费分发、捆绑销售、恶意用途与冒名官方分发**。构建产物仅通过 GitHub Releases 官方发布。
 
 仅供在自有设备上研究 Unity/il2cpp 运行时反射、进程内存读取与图形投影。使用后果自负。

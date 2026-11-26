@@ -7,8 +7,11 @@ module/esp/esp.apk
 module/esp/esp.js
 module/esp/libhw.config
 overlay/build/
+
+# 预编译二进制：自 v2.0.0 起只随 GitHub Releases 发布，不提交主分支
+module/bin/espd-arm64
+module/bin/espd-arm
 overlay/dist/*.apk
-!overlay/dist/esp.apk
 
 # 调试残留
 *.log

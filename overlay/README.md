@@ -19,7 +19,7 @@ smali/com/lcs/esp/     我们自己写的全部类（32 个文件）
 AndroidManifest.xml    Service / Activity 声明（不含 dex 里的库类）
 apktool.yml            apktool 配置
 assets/                随包资产：esp.js、gadget 配置样例、watch.sh
-dist/esp.apk           预编译 APK（debug 签名）
+dist/esp.apk           基线/预编译 APK（debug 签名，从 Releases 获取，不入库）
 build.ps1              从 smali 重建 APK
 ```
 
@@ -31,7 +31,7 @@ powershell -ExecutionPolicy Bypass -File overlay\build.ps1 -Apktool D:\apk-tools
 
 流程：解码 `dist/esp.apk`（作为基线，里面已含 androidx/kotlin 依赖）→ 用本目录 `smali/` 覆盖 `com/lcs/esp` → `apktool b` → `zipalign` → `apksigner`。
 
-> 仓库里不存 37MB 的 androidx smali，只存我们自己的类。基线 APK 就是 `dist/esp.apk`。
+> 仓库里不存 37MB 的 androidx smali，只存我们自己的类。基线 APK 需要从 [Releases](https://github.com/e2168708352-web/kihan-esp/releases) 下载 `esp.apk` 放到 `dist/esp.apk`（自 v2.0.0 起二进制不入库）。
 
 ## 装机
 

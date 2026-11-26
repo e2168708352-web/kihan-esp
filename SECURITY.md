@@ -35,11 +35,12 @@
 
 ## 3. 官方构建校验信息（当前基线）
 
-> 以下为仓库当前 `HEAD` 对应的本地产物基线，供比对使用。**Releases 产物尚未发布**；发布时每个 Release 必须包含下列完整元数据。
+> 以下为**官方 Release** 对应的构建基线，供比对使用。自 v2.0.0 起，预编译二进制不再提交到主分支，只作为 Release 附件发布。
 
 | 项 | 值 |
 |---|---|
-| Commit | `a2d20f6c2c4aaa0eaeea5b8afb670a37633df32d`（2026-11-26） |
+| 发布 tag | `v2.0.0` |
+| 构建源 commit | `a2d20f6c2c4aaa0eaeea5b8afb670a37633df32d`（2026-11-26；此后源码未变，仅文档与分发方式调整） |
 | `espd-arm64` SHA256 | `42F5977516199E9EB4C4D83BBB83A7FDE0E5BCA0F417F1AFD741FF8991D6EB01` |
 | `esp.apk` SHA256 | `E61BE0464501E54BD9A64302215A061341618329605C0982B26CA4B2B6DBDBAB` |
 | APK 签名证书 DN | `CN=Android Debug, O=Android, C=US` |
@@ -54,16 +55,17 @@
 4. **构建环境**（NDK / Gradle / build-tools 版本）
 5. 可复现构建脚本入口（仓库内 `tools/espd/build.ps1`、`overlay/build.ps1`、`module/build-module.ps1`）
 
-> **注意（需人类决策）**：当前 APK 使用 debug 签名、且预编译二进制提交在主分支。目标状态是"仅 Releases 发布构建产物、主分支只保留源码与可复现构建脚本"。在切换之前，上表指纹仅作现状记录，**不构成官方 Release 担保**。
+> **状态**：自 v2.0.0 起，预编译二进制已从主分支移除，仅作为 Release 附件发布。上表指纹对应 `v2.0.0` Release 附件。
 
 ---
 
 ## 4. 官方构建产物清单
 
-主分支**只保留源码与可复现构建脚本**，不放预编译二进制（目标状态）。当前仓库仍存在以下二进制（历史遗留，见决策项）：
+主分支**只保留源码与可复现构建脚本**，不放预编译二进制。
 
-- `module/bin/espd-arm64`
-- `overlay/dist/esp.apk`
+- 预编译产物：仅从 [Releases](https://github.com/e2168708352-web/kihan-esp/releases) 获取
+- `module/bin/espd-arm64`、`overlay/dist/esp.apk` 已加入 `.gitignore`，不再跟踪
+- 历史 commit（`a2d20f6` 及之前）中仍含这些二进制，属历史快照，不代表当前官方分发
 
 构建脚本：
 
@@ -72,6 +74,8 @@
 | `espd` 守护进程 | `tools/espd/build.ps1` |
 | 悬浮窗 APK | `overlay/build.ps1` |
 | 模块 zip | `module/build-module.ps1` |
+
+> 悬浮窗 APK 的构建需要基线 APK（含 androidx 依赖）。从 Releases 下载 `esp.apk` 放到 `overlay/dist/esp.apk` 即可作为基线。
 
 ---
 
