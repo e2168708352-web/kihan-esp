@@ -40,7 +40,7 @@ if [ "$RUID" != "0" ]; then
 fi
 
 case "$CTX" in
-  *ksu*|*su:s0*|*su_u*)
+  *ksu*|*magisk*|*apatch*|*su:s0*|*su_u*)
     echo "    域可用 ✓"
     ;;
   *shell*)

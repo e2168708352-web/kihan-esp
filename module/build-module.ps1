@@ -1,4 +1,4 @@
-﻿<#
+<#
   build-module.ps1 (v2) — 把 module/ + esp/ 打成可刷入的 KernelSU/Magisk 模块 zip
 
   新架构：进程外只读（espd），不再需要 gadget / Zygisk / ZygiskFrida。
@@ -46,7 +46,10 @@ if (Test-Path $built) {
   }
 } elseif (!(Test-Path $espd)) {
   if (!$AllowNoEspd) {
-    throw "缺少 $espd（先跑 tools\espd\build.ps1，或加 -AllowNoEspd 跳过）"
+    throw "缺少 $espd。自 v2.0.0 起预编译二进制不入库，请先执行：`n" +
+          "  1) powershell -ExecutionPolicy Bypass -File tools\espd\build.ps1   （编译 espd）`n" +
+          "  2) 从 GitHub Releases 下载 esp.apk 放到 overlay\dist\esp.apk`n" +
+          "或者临时加 -AllowNoEspd 跳过（模块将不含守护进程）。"
   }
 }
 
@@ -65,7 +68,7 @@ New-Item -ItemType Directory -Force $espStage | Out-Null
 $apk = Join-Path $repo 'overlay\dist\esp.apk'
 if (Test-Path $apk) { Copy-Item $apk $espStage }
 elseif ($AllowNoApk) { Write-Warning "缺少 overlay\dist\esp.apk —— 模块装完不会有悬浮窗" }
-else { throw "缺少 overlay\dist\esp.apk（先跑 overlay\build.ps1，或加 -AllowNoApk 跳过）" }
+else { throw "缺少 overlay\dist\esp.apk。自 v2.0.0 起该文件不入库，请从 GitHub Releases 下载 esp.apk 放到 overlay\dist\esp.apk，或加 -AllowNoApk 跳过" }
 
 # -------- 打包（entry 用 '/' 且无顶层目录） --------
 Write-Host '[2/3] 打包 ...'

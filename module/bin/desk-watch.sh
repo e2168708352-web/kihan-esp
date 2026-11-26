@@ -41,8 +41,12 @@ trap 'rm -f "$PIDF"; exit 0' INT TERM
 alive() { pidof "$1" >/dev/null 2>&1; }
 
 # 服务级判断（准确，但 dumpsys 较慢，只在必要时调用）
+# 用「完整组件名」而非模糊的 "OverlayService" 匹配：不同 Android 版本的 dumpsys
+# 输出列名/排版差异很大，匹配完整组件名 com.lcs.esp.OverlayService 最稳。
+# 注意：不能用 pidof 兜底 —— am stopservice 之后进程会作为空进程常驻（实测 pid
+# 一直在），pidof 会永远返回「还在跑」，导致 stop 逻辑每 30s 空刷一次。
 svc_running() {
-  dumpsys activity services "$PKG" 2>/dev/null | grep -q "OverlayService"
+  dumpsys activity services "$PKG" 2>/dev/null | grep -q "com.lcs.esp.OverlayService"
 }
 
 SVC_ON=unknown
