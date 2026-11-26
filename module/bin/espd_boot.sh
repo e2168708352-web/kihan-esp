@@ -21,20 +21,20 @@ W=/data/local/tmp/.esp
 BIN=$W/bin
 LOG=$W/espd.log
 
-log() { echo "$(date '+%m-%d %H:%M:%S') $*" | tee -a "$LOG" >/dev/null; echo "  $*"; }
-
 echo "=========================================="
 echo " espd boot (临时 root 模式)"
 echo "=========================================="
 
 # ---------- 1. root 自检 ----------
 CTX=$(cat /proc/self/attr/current 2>/dev/null | tr -d '\0')
-UID=$(id -u 2>/dev/null)
+# 注意：不能用 UID 做变量名 —— bash/mksh 里它是只读变量，赋值会被静默忽略，
+# 导致 root 自检拿到 shell 自动填充的旧值（虽然碰巧也是 0，但语义不可靠）。
+RUID=$(id -u 2>/dev/null)
 echo "[1] root 自检"
-echo "    uid=$UID"
+echo "    uid=$RUID"
 echo "    ctx=$CTX"
 
-if [ "$UID" != "0" ]; then
+if [ "$RUID" != "0" ]; then
   echo "    !! 不是 root，退出"
   exit 1
 fi
